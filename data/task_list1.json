@@ -1,0 +1,98 @@
+[
+    {
+      "task_id": "F1.1",
+      "title": "Support Multi-Connector Detection + Selection",
+      "goal": "Support environments with more than one ready connector",
+      "definition_of_done": [
+        "Auto-select connector if only one is `.ready`",
+        "Render dropdown or modal selector if multiple available"
+      ],
+      "estimated_time": "20\u201330 min",
+      "dependencies": "Base connect UI",
+      "ui_behavior": "Show selector if multiple connectors detected",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "F1.2",
+      "title": "Improve Connector Readiness Detection",
+      "goal": "Iterate over all connectors to detect readiness correctly",
+      "definition_of_done": [
+        "Use `connectors[]` from Wagmi",
+        "Filter `.ready === true`",
+        "Expose list to UI"
+      ],
+      "estimated_time": "10\u201315 min",
+      "dependencies": "None",
+      "ui_behavior": "\u201cNo wallet detected\u201d if list is empty",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "F1.3",
+      "title": "Add Explicit Post-Timeout Recovery Flow",
+      "goal": "Ensure clean retry path after connection timeout",
+      "definition_of_done": [
+        "Reset `isConnecting` state",
+        "Re-enable connect button",
+        "Show retry tooltip or button"
+      ],
+      "estimated_time": "10\u201315 min",
+      "dependencies": "Existing timeout logic",
+      "ui_behavior": "Retry available immediately after timeout",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "F1.4",
+      "title": "Handle User Rejection and Connector Errors",
+      "goal": "Surface user rejections and connector errors cleanly",
+      "definition_of_done": [
+        "Catch `.catch()` errors on connect",
+        "Log `error.message`, `connector.id`",
+        "Show toast/card with retry",
+        "Use `ERR_CONNECT_REJECTED`, `ERR_CONNECT_FAILED`"
+      ],
+      "estimated_time": "20 min",
+      "dependencies": "Connect handler",
+      "ui_behavior": "Non-blocking error display + retry",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "F1.5",
+      "title": "Add Dev-Focused Logging for Connect Lifecycle",
+      "goal": "Provide clear logs for developers",
+      "definition_of_done": [
+        "Log connector selection, connection attempts and outcomes",
+        "Include `chain.id`, hook snapshots",
+        "Only in `NODE_ENV=development`"
+      ],
+      "estimated_time": "15 min",
+      "dependencies": "Any connect logic",
+      "ui_behavior": "Console logs only",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "F1.6",
+      "title": "Namespace Session Persistence Keys",
+      "goal": "Prevent localStorage collisions",
+      "definition_of_done": [
+        "Store connector metadata under key `walletSession:<appId>`",
+        "Clear on disconnect or failure"
+      ],
+      "estimated_time": "10 min",
+      "dependencies": "Existing session store",
+      "ui_behavior": "None (background state)",
+      "status": "Not Started"
+    },
+    {
+      "task_id": "F1.7",
+      "title": "Fallback Message for No Wallets Detected",
+      "goal": "Improve UX when no connector is ready",
+      "definition_of_done": [
+        "If all `connectors[].ready === false`, show message",
+        "Provide MetaMask or WalletConnect install links"
+      ],
+      "estimated_time": "15 min",
+      "dependencies": "Task F1.2",
+      "ui_behavior": "Non-blocking fallback card/message",
+      "status": "Not Started"
+    }
+  ]

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task List (Tailwind)</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <script>
+        // Optional: You can define custom theme configurations here if needed
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Example of extending colors if needed
+                        // 'brand-blue': '#1992d4',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        /* You can add custom CSS or @apply directives here if necessary */
+        /* For example: */
+        /* body {
+            @apply bg-gray-900;
+           } */
+           
+        .toast-notification {
+            @apply fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg;
+            transition: transform 0.3s, opacity 0.3s;
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        
+        .toast-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get all task items
+            const taskItems = document.querySelectorAll('ul li');
+            
+            // Array to track completed tasks
+            let completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+            
+            // Function to mark a task as in progress
+            function setTaskInProgress(item) {
+                // Reset all tasks to default state
+                taskItems.forEach(task => {
+                    const taskId = task.querySelector('span:first-child').textContent.trim();
+                    task.classList.remove('ring-2', 'ring-green-500', 'bg-gray-600');
+                    
+                    // Don't change styling of completed tasks
+                    if (!completedTasks.includes(taskId)) {
+                        task.classList.add('bg-gray-700');
+                    }
+                    
+                    const statusBadge = task.querySelector('.status-badge');
+                    if (statusBadge && statusBadge.textContent === 'IN PROGRESS') {
+                        statusBadge.remove();
+                    }
+                });
+                
+                if (!item) return; // If no item provided, just reset all
+                
+                const taskId = item.querySelector('span:first-child').textContent.trim();
+                // Don't mark completed tasks as in progress
+                if (completedTasks.includes(taskId)) {
+                    showToast(`Task ${taskId} is already completed`);
+                    return;
+                }
+                
+                // Mark the clicked task as "in progress"
+                item.classList.add('ring-2', 'ring-green-500', 'bg-gray-600');
+                item.classList.remove('bg-gray-700');
+                
+                // Get the task text and ID
+                const taskText = item.querySelector('span:nth-child(2)').textContent;
+                
+                // Add "In Progress" badge
+                const badge = document.createElement('span');
+                badge.className = 'status-badge bg-green-600 text-xs py-1 px-2 rounded ml-2 font-medium inline-block';
+                badge.textContent = 'IN PROGRESS';
+                
+                // Clear any existing badges before adding new one
+                const existingBadge = item.querySelector('.status-badge');
+                if (existingBadge) existingBadge.remove();
+                
+                // Insert the badge after the task text
+                const taskTextElement = item.querySelector('span:nth-child(2)');
+                taskTextElement.insertAdjacentElement('afterend', badge);
+                
+                console.log(`Working on task ${taskId}: ${taskText}`);
+                
+                // Save to localStorage
+                localStorage.setItem('currentTask', taskId);
+                
+                // Show toast notification
+                showToast(`Now working on: ${taskId} - ${taskText.trim()}`);
+            }
+            
+            // Function to mark a task as complete
+            function toggleTaskComplete(item, event) {
+                event.stopPropagation(); // Prevent triggering the parent click event
+                
+                const taskId = item.querySelector('span:first-child').textContent.trim();
+                const taskText = item.querySelector('span:nth-child(2)');
+                
+                // Toggle completed state
+                if (completedTasks.includes(taskId)) {
+                    // Remove from completed tasks
+                    completedTasks = completedTasks.filter(id => id !== taskId);
+                    item.classList.remove('bg-gray-900');
+                    item.classList.add('bg-gray-700');
+                    taskText.classList.remove('line-through', 'text-gray-500');
+                    
+                    // Remove "COMPLETED" badge if exists
+                    const completedBadge = item.querySelector('.completed-badge');
+                    if (completedBadge) completedBadge.remove();
+                    
+                    showToast(`Task ${taskId} marked as not completed`);
+                } else {
+                    // Add to completed tasks
+                    completedTasks.push(taskId);
+                    item.classList.remove('bg-gray-700', 'ring-2', 'ring-green-500', 'bg-gray-600');
+                    item.classList.add('bg-gray-900');
+                    taskText.classList.add('line-through', 'text-gray-500');
+                    
+                    // Add "COMPLETED" badge
+                    const badge = document.createElement('span');
+                    badge.className = 'completed-badge bg-blue-600 text-xs py-1 px-2 rounded ml-2 font-medium inline-block';
+                    badge.textContent = 'COMPLETED';
+                    
+                    // Clear any existing badges
+                    const existingBadge = item.querySelector('.status-badge, .completed-badge');
+                    if (existingBadge) existingBadge.remove();
+                    
+                    taskText.insertAdjacentElement('afterend', badge);
+                    
+                    // If this was the current task, clear it
+                    if (localStorage.getItem('currentTask') === taskId) {
+                        localStorage.removeItem('currentTask');
+                    }
+                    
+                    showToast(`Task ${taskId} marked as completed!`);
+                }
+                
+                // Save completed tasks to localStorage
+                localStorage.setItem('completedTasks', JSON.stringify(completedTasks));
+            }
+            
+            // Function to show toast notification
+            function showToast(message) {
+                // Remove any existing toast
+                const existingToast = document.querySelector('.toast-notification');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+                
+                // Create new toast
+                const toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                toast.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span>${message}</span>
+                        <button class="ml-4 text-white hover:text-gray-200 focus:outline-none" id="clearTask">
+                            <span class="text-sm">×</span>
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(toast);
+                
+                // Show the toast
+                setTimeout(() => toast.classList.add('show'), 10);
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 5000);
+                
+                // Add clear task button event
+                toast.querySelector('#clearTask').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    clearCurrentTask();
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                });
+            }
+            
+            // Function to clear current task
+            function clearCurrentTask() {
+                localStorage.removeItem('currentTask');
+                setTaskInProgress(null);
+                showToast('Task cleared');
+            }
+            
+            // Add click event listener to each task
+            taskItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    setTaskInProgress(item);
+                });
+                
+                // Add complete button to the action area
+                const actionArea = item.querySelector('.ml-2.flex');
+                if (actionArea) {
+                    const completeButton = document.createElement('span');
+                    completeButton.className = 'p-1 hover:text-green-300 cursor-pointer';
+                    completeButton.title = 'Mark as complete';
+                    completeButton.innerHTML = '✓';
+                    completeButton.addEventListener('click', (e) => toggleTaskComplete(item, e));
+                    actionArea.prepend(completeButton);
+                }
+            });
+            
+            // Apply completed styling on page load
+            completedTasks.forEach(taskId => {
+                const task = Array.from(taskItems).find(item => 
+                    item.querySelector('span:first-child').textContent.trim() === taskId
+                );
+                
+                if (task) {
+                    const taskText = task.querySelector('span:nth-child(2)');
+                    task.classList.remove('bg-gray-700');
+                    task.classList.add('bg-gray-900');
+                    taskText.classList.add('line-through', 'text-gray-500');
+                    
+                    // Add "COMPLETED" badge
+                    const badge = document.createElement('span');
+                    badge.className = 'completed-badge bg-blue-600 text-xs py-1 px-2 rounded ml-2 font-medium inline-block';
+                    badge.textContent = 'COMPLETED';
+                    
+                    // Clear any existing badges
+                    const existingBadge = task.querySelector('.status-badge, .completed-badge');
+                    if (existingBadge) existingBadge.remove();
+                    
+                    taskText.insertAdjacentElement('afterend', badge);
+                }
+            });
+            
+            // Check localStorage for existing task on page load
+            const savedTaskId = localStorage.getItem('currentTask');
+            if (savedTaskId) {
+                const savedTask = Array.from(taskItems).find(item => 
+                    item.querySelector('span:first-child').textContent.trim() === savedTaskId.trim()
+                );
+                
+                if (savedTask) {
+                    // Use setTimeout to allow a small visual delay for better UX
+                    setTimeout(() => setTaskInProgress(savedTask), 300);
+                }
+            }
+        });
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-200 font-sans p-5">
+
+<div class="max-w-3xl mx-auto bg-gray-800 p-5 rounded-lg shadow-lg">
+
+    <div class="mb-6">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-600">
+            <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center">
+                <span class="mr-2 text-gray-500 text-lg leading-none">⠿</span>
+                To Do
+            </h2>
+            <span class="text-gray-500 text-xl font-bold cursor-pointer hover:text-gray-300" title="Add Task">+</span>
+        </div>
+
+        <ul class="list-none p-0 m-0 space-y-2">
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.1</span>
+                <span class="flex-grow text-sm text-gray-100">Support Multi-Connector Detection + Selection</span>
+                <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">
+                     </div>
+            </li>
+
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.2</span>
+                <span class="flex-grow text-sm text-gray-100">Improve Connector Readiness Detection</span>
+                 <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"></div>
+            </li>
+
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.3</span>
+                <span class="flex-grow text-sm text-gray-100">Add Explicit Post-Timeout Recovery Flow</span>
+                 <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">
+                    <span class="p-1 hover:text-gray-300" title="Details">ℹ️</span>
+                 </div>
+            </li>
+
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.4</span>
+                <span class="flex-grow text-sm text-gray-100">Handle User Rejection and Connector Errors</span>
+                 <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"></div>
+            </li>
+
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.5</span>
+                <span class="flex-grow text-sm text-gray-100">Add Dev-Focused Logging for Connect Lifecycle</span>
+                 <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"></div>
+            </li>
+
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.6</span>
+                <span class="flex-grow text-sm text-gray-100">Namespace Session Persistence Keys</span>
+                 <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"></div>
+            </li>
+
+            <li class="flex items-center bg-gray-700 p-3 rounded hover:bg-gray-600 transition duration-150 ease-in-out cursor-pointer group">
+                <span class="bg-gray-600 text-gray-300 py-1 px-2 rounded text-xs font-medium mr-3 whitespace-nowrap">F1.7</span>
+                <span class="flex-grow text-sm text-gray-100">Fallback Message for No Wallets Detected</span>
+                 <div class="ml-2 flex items-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"></div>
+            </li>
+            </ul>
+    </div>
+
+    </div>
+
+</body>
+</html>
