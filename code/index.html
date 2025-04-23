@@ -17,6 +17,25 @@
                 }
             }
         }
+        
+        // App configuration
+        const appConfig = {
+            forceProductionMode: localStorage.getItem('forceProductionMode') === 'true' || false,
+            
+            // Helper function to check if we're in production mode
+            isProductionMode() {
+                return this.forceProductionMode || 
+                      (window.location.hostname !== 'localhost' && 
+                       window.location.hostname !== '127.0.0.1');
+            },
+            
+            // Toggle production mode
+            toggleProductionMode() {
+                this.forceProductionMode = !this.forceProductionMode;
+                localStorage.setItem('forceProductionMode', this.forceProductionMode);
+                return this.forceProductionMode;
+            }
+        };
     </script>
     <style type="text/tailwindcss">
         /* You can add custom CSS or @apply directives here if necessary */
@@ -61,6 +80,19 @@
             @apply bg-gray-900 p-3 rounded font-mono text-sm;
             overflow-x: auto;
         }
+        
+        .mode-indicator {
+            @apply fixed bottom-4 right-4 px-3 py-1 rounded text-xs font-medium;
+            z-index: 100;
+        }
+        
+        .mode-indicator.dev {
+            @apply bg-green-700 text-white;
+        }
+        
+        .mode-indicator.prod {
+            @apply bg-blue-700 text-white;
+        }
     </style>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +101,18 @@
             
             // Array to track completed tasks
             let completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+            
+            // Production mode toggle
+            const productionToggle = document.getElementById('productionToggle');
+            productionToggle.checked = appConfig.forceProductionMode;
+            
+            productionToggle.addEventListener('change', () => {
+                const isProduction = appConfig.toggleProductionMode();
+                showToast(`${isProduction ? 'Production' : 'Development'} mode activated`);
+                
+                // Reload the page to apply changes
+                setTimeout(() => window.location.reload(), 1000);
+            });
             
             // Function to mark a task as in progress
             function setTaskInProgress(item) {
@@ -180,7 +224,7 @@
             }
             
             // Function to show toast notification
-            function showToast(message) {
+            function showToast(message, type = 'info') {
                 // Remove any existing toast
                 const existingToast = document.querySelector('.toast-notification');
                 if (existingToast) {
@@ -190,6 +234,18 @@
                 // Create new toast
                 const toast = document.createElement('div');
                 toast.className = 'toast-notification';
+                
+                // Add color based on type
+                if (type === 'error') {
+                    toast.classList.add('bg-red-600');
+                } else if (type === 'success') {
+                    toast.classList.add('bg-green-600');
+                } else if (type === 'warning') {
+                    toast.classList.add('bg-yellow-600');
+                } else {
+                    toast.classList.add('bg-blue-600');
+                }
+                
                 toast.innerHTML = `
                     <div class="flex justify-between items-center">
                         <span>${message}</span>
@@ -307,8 +363,11 @@ Use TypeScript and React for the implementation.`;
                 // Encode the prompt for URL
                 const encodedPrompt = encodeURIComponent(prompt);
                 
+                // Track start time for analytics
+                const startTime = new Date();
+                
                 // Check if we're in development or production
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                if (!appConfig.isProductionMode()) {
                     // In development, just log to console
                     console.log(`%cSending to Cursor: %c${prompt}`, 'font-weight: bold;', 'color: green;');
                     
@@ -360,6 +419,9 @@ Use TypeScript and React for the implementation.`;
                     // In production, try to integrate with Cursor
                     // This uses various methods to try to connect with Cursor
                     
+                    // Show sending indicator
+                    showToast(`Sending task ${taskId} to Cursor...`);
+                    
                     // First, try to use the Cursor CLI API if installed locally
                     // This would require a local server endpoint that forwards to Cursor CLI
                     const localCursorEndpoint = 'http://localhost:8765/cursor/api';
@@ -378,15 +440,21 @@ Use TypeScript and React for the implementation.`;
                                 taskId,
                                 taskText,
                                 prompt,
-                                callbackUrl: window.location.origin + '/api/task-complete'
+                                callbackUrl: window.location.origin + '/api/task-complete',
+                                startTime: startTime.toISOString()
                             }),
                             mode: 'no-cors'
+                        })
+                        .then(() => {
+                            showToast(`Task ${taskId} successfully sent to Cursor!`, 'success');
+                        })
+                        .catch(error => {
+                            console.error('Error sending task to Cursor:', error);
+                            showToast(`Error sending task to Cursor: ${error.message}`, 'error');
                         });
-                        
-                        showToast('Task sent to local Cursor instance');
                     })
                     .catch(error => {
-                        console.log('Local Cursor not available, trying web version...');
+                        console.log('Local Cursor not available, trying web version...', error);
                         
                         // Fallback to Cursor web app
                         if (confirm(`Would you like to open Cursor web app to implement task ${taskId}?`)) {
@@ -479,6 +547,12 @@ Use TypeScript and React for the implementation.`;
                 }
             });
             
+            // Add mode indicator to page
+            const modeIndicator = document.createElement('div');
+            modeIndicator.className = `mode-indicator ${appConfig.isProductionMode() ? 'prod' : 'dev'}`;
+            modeIndicator.textContent = appConfig.isProductionMode() ? 'PRODUCTION MODE' : 'DEVELOPMENT MODE';
+            document.body.appendChild(modeIndicator);
+            
             // Check localStorage for existing task on page load
             const savedTaskId = localStorage.getItem('currentTask');
             if (savedTaskId) {
@@ -504,7 +578,16 @@ Use TypeScript and React for the implementation.`;
                 <span class="mr-2 text-gray-500 text-lg leading-none">⠿</span>
                 To Do
             </h2>
-            <span class="text-gray-500 text-xl font-bold cursor-pointer hover:text-gray-300" title="Add Task">+</span>
+            <div class="flex items-center">
+                <div class="mr-3 flex items-center">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="productionToggle" class="sr-only peer">
+                        <div class="relative w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-blue-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        <span class="ml-2 text-sm text-gray-400">Production</span>
+                    </label>
+                </div>
+                <span class="text-gray-500 text-xl font-bold cursor-pointer hover:text-gray-300" title="Add Task">+</span>
+            </div>
         </div>
 
         <ul class="list-none p-0 m-0 space-y-2">
